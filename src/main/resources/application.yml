@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: bazaar-backend
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/bazaar_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: saifee162007
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
