@@ -3,12 +3,15 @@ package com.bazaar.backend;
 import com.bazaar.backend.model.Category;
 import com.bazaar.backend.model.Product;
 import com.bazaar.backend.repository.CategoryRepository;
+import com.bazaar.backend.repository.ProductRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
 
 @SpringBootApplication
 public class BackendApplication {
@@ -18,40 +21,42 @@ public class BackendApplication {
     }
 
     @Bean
-    CommandLineRunner commandLineRunner(CategoryRepository categoryRepository) {
+    @Transactional
+    CommandLineRunner commandLineRunner(CategoryRepository categoryRepository, ProductRepository productRepository) {
         return args -> {
-            // 1. Pehle Parent Category banayein
-            Category electronics = Category.builder()
-                    .name("Electronics")
-                    .description("Mobile, Laptops and gadgets")
-                    .products(new ArrayList<>()) // Khali list initialize ki
-                    .build();
+            // 1. Database cleanup taaki fresh data insert ho sake
+            productRepository.deleteAll();
+            categoryRepository.deleteAll();
 
-            // 2. Child Products banayein aur unhe Category assign karein (Owning side map kiya)
-            Product p1 = Product.builder()
-                    .name("iPhone 15 Pro")
-                    .description("Apple flagship phone")
-                    .price(new BigDecimal("129999.00"))
-                    .stock(50)
-                    .category(electronics) // Product ko bataya uski category kaun si hai
-                    .build();
+            // 2. Mock Data Insert Karna (3 alag categories aur unke products)
+            Category cat1 = Category.builder().name("Electronics").description("Gadgets").products(new ArrayList<>()).build();
+            Category cat2 = Category.builder().name("Clothing").description("Apparel").products(new ArrayList<>()).build();
 
-            Product p2 = Product.builder()
-                    .name("MacBook Air M3")
-                    .description("Apple lightweight laptop")
-                    .price(new BigDecimal("114999.00"))
-                    .stock(30)
-                    .category(electronics) // Product ko bataya uski category kaun si hai
-                    .build();
+            categoryRepository.save(cat1);
+            categoryRepository.save(cat2);
 
-            // 3. Category ki list me bhi dono products ko add kar diya (Bidirectional sync)
-            electronics.getProducts().add(p1);
-            electronics.getProducts().add(p2);
+            Product p1 = Product.builder().name("Laptop").price(new BigDecimal("50000")).stock(10).category(cat1).build();
+            Product p2 = Product.builder().name("Mobile").price(new BigDecimal("20000")).stock(20).category(cat1).build();
+            Product p3 = Product.builder().name("T-Shirt").price(new BigDecimal("1000")).stock(30).category(cat2).build();
 
-            // 4. Sirf Parent ko save karenge, CascadeType.ALL ki wajah se Products khud save ho jayenge!
-            categoryRepository.save(electronics);
+            productRepository.saveAll(List.of(p1, p2, p3));
 
-            System.out.println("🚀 SUCCESS: Category and Cascade Products Saved in MySQL Successfully!");
+            System.out.println("========== DATA DUMP COMPLETE ==========");
+
+            // 📋 TEST 1: Demonstrating the N+1 Problem (Uncomment to see the worst case log)
+//            System.out.println("\n🔥 TRIGGERING N+1 PROBLEM (Worst Case):");
+//            List<Product> badProducts = productRepository.findAll(); // Standard built-in method
+//            for (Product p : badProducts) {
+//                // Yahan category ka naam fetch karte hi extra query fire hogi console me!
+//                System.out.println("Product: " + p.getName() + " -> Category: " + p.getCategory().getName());
+//            }
+
+            // 📋 TEST 2: Testing the JOIN FETCH Optimization (The Fix)
+            System.out.println("\n🛡️ TRIGGERING JOIN FETCH OPTIMIZATION (Best Case):");
+            List<Product> goodProducts = productRepository.findAllWithCategoryFetch(); // Custom optimized query
+            for (Product p : goodProducts) {
+                System.out.println("Product: " + p.getName() + " -> Optimized Category: " + p.getCategory().getName());
+            }
         };
     }
 }
