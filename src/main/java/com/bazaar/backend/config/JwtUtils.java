@@ -36,7 +36,7 @@ public class JwtUtils {
     }
 
     // 3. Method to Validate Token (Check Expiry and Integrity)
-    public boolean validateToken(String token) {
+    public boolean validateToken(String token, String username) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
